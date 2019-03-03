@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fe-%s
+  namespace: hyperfaas
+spec:
+  containers:
+  - name: ics
+    image: zhangjyr/go2env:b1
+    resources:
+      requests:
+        cpu: "250m"
+      limits:
+        cpu: "500m"
+    env:
+    - name: profile
+      value: "/profile.log"
+    - name: faas
+      value: "%s"

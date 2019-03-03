@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: yingwu
+  namespace: hyperfaas
+spec:
+  containers:
+  - name: yingwu
+    image: zhangjyr/yingwu:b1
+    command: /yingwu -d 30 -c 20
