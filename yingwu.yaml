@@ -7,4 +7,10 @@ spec:
   containers:
   - name: yingwu
     image: zhangjyr/yingwu:b1
-    command: /yingwu -d 30 -c 20
+    imagePullPolicy: Always
+    # resources:
+    #   requests:
+    #     cpu: "300m"
+    #   limits:
+    #     cpu: "300m"
+    command: [ "/yingwu", "-d", "30", "-c", "10", "-h", "2" ]

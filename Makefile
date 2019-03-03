@@ -3,7 +3,7 @@ IMAGE = $(REGISTRY)/yingwu
 
 TAG = b1
 
-all: linux
+all: container push
 
 linux:
 	CGO_ENABLED=0 GOOS=darwin go build -a -ldflags "-s -w" -installsuffix cgo -o yingwu
@@ -13,3 +13,27 @@ container:
 
 push:
 	docker push $(IMAGE):$(TAG)
+
+init:
+	kubectl create -f k8s/hyperfaas.json
+
+log:
+	kubectl logs -f yingwu -n hyperfaas
+
+run:
+	kubectl create -f yingwu.yaml
+
+terminate:
+	kubectl exec yingwu -n hyperfaas -c yingwu -- kill -2 1
+
+clean:
+	kubectl delete pod yingwu -n hyperfaas
+
+cleanall:
+	kubectl delete namespace hyperfaas
+
+describe:
+	kubectl describe pod yingwu -n hyperfaas
+
+pods:
+	kubectl get pods -n hyperfaas

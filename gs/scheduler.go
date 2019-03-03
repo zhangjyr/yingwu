@@ -2,13 +2,12 @@ package gs
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
+	"errors"
+	"net/http"
 	"strings"
-	"time"
+//	"time"
 
 	"github.com/tsliwowicz/go-wrk/loader"
-	"github.com/tsliwowicz/go-wrk/util"
 )
 
 type Scheduler struct {
@@ -21,11 +20,7 @@ func NewScheduler() *Scheduler {
 	}
 }
 
-func (s *Scheduler) Send(n int, concurrency int) {
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-
+func (s *Scheduler) Send(fe *FE, function string, n int, concurrency int, stats chan *loader.RequesterStats) *loader.LoadCfg {
 	duration := n
 	goroutines := concurrency
 	allowRedirectsFlag := false
@@ -34,7 +29,7 @@ func (s *Scheduler) Send(n int, concurrency int) {
 	timeoutms := 1000
 	method := "GET"
 	host := ""
-	headerStr := "X-FUNCTION: hello"
+	headerStr := fmt.Sprintf("X-FUNCTION: %s", function)
 	reqBody := ""
 	clientCert := ""
 	clientKey := ""
@@ -49,46 +44,30 @@ func (s *Scheduler) Send(n int, concurrency int) {
 			header[hp[0]] = hp[1]
 		}
 	}
-	statsAggregator := make(chan *loader.RequesterStats, goroutines)
-	loadGen := loader.NewLoadCfg(duration, goroutines, "http://localhost:8080/", reqBody, method, host, header, statsAggregator, timeoutms,
+
+	loadGen := loader.NewLoadCfg(duration, goroutines, fe.Addr(), reqBody, method, host, header, stats, timeoutms,
 		allowRedirectsFlag, disableCompression, disableKeepAlive, clientCert, clientKey, caCert, http2)
 
 	for i := 0; i < goroutines; i++ {
 		go loadGen.RunSingleLoadSession()
 	}
 
-	responders := 0
-	aggStats := loader.RequesterStats{MinRequestTime: time.Minute}
+	return loadGen
+}
 
-	for responders < goroutines {
-		select {
-		case <-sigChan:
-			loadGen.Stop()
-			fmt.Printf("stopping...\n")
-		case stats := <-statsAggregator:
-			aggStats.NumErrs += stats.NumErrs
-			aggStats.NumRequests += stats.NumRequests
-			aggStats.TotRespSize += stats.TotRespSize
-			aggStats.TotDuration += stats.TotDuration
-			aggStats.MaxRequestTime = util.MaxDuration(aggStats.MaxRequestTime, stats.MaxRequestTime)
-			aggStats.MinRequestTime = util.MinDuration(aggStats.MinRequestTime, stats.MinRequestTime)
-			responders++
-		}
+func (s *Scheduler) Share(fe *FE, function string) error {
+	url := fmt.Sprintf("%s_/share/%s", fe.AdminAddr(), function)
+
+	rsp, err := http.Post(url, "application/json", nil)
+	if err == nil && rsp.StatusCode < 300 {
+		// Success
+		rsp.Body.Close()
+		return nil
 	}
 
-	if aggStats.NumRequests == 0 {
-		fmt.Println("Error: No statistics collected / no requests found\n")
-		return
+	if err != nil {
+		return err
+	} else {
+		return errors.New(fmt.Sprintf("Fail to share %s: %d.", url, rsp.StatusCode))
 	}
-
-	avgThreadDur := aggStats.TotDuration / time.Duration(responders) //need to average the aggregated duration
-
-	reqRate := float64(aggStats.NumRequests) / avgThreadDur.Seconds()
-	avgReqTime := aggStats.TotDuration / time.Duration(aggStats.NumRequests)
-	bytesRate := float64(aggStats.TotRespSize) / avgThreadDur.Seconds()
-	fmt.Printf("%v requests in %v, %v read\n", aggStats.NumRequests, avgThreadDur, util.ByteSize{float64(aggStats.TotRespSize)})
-	fmt.Printf("Requests/sec:\t\t%.2f\nTransfer/sec:\t\t%v\nAvg Req Time:\t\t%v\n", reqRate, util.ByteSize{bytesRate}, avgReqTime)
-	fmt.Printf("Fastest Request:\t%v\n", aggStats.MinRequestTime)
-	fmt.Printf("Slowest Request:\t%v\n", aggStats.MaxRequestTime)
-	fmt.Printf("Number of Errors:\t%v\n", aggStats.NumErrs)
 }
