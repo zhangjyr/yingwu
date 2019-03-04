@@ -14,8 +14,9 @@ container:
 push:
 	docker push $(IMAGE):$(TAG)
 
-init:
+deploy:
 	kubectl create -f k8s/hyperfaas.json
+	kubectl create -f k8s/rbac.yaml
 
 log:
 	kubectl logs -f yingwu -n hyperfaas
@@ -23,8 +24,8 @@ log:
 run:
 	kubectl create -f yingwu.yaml
 
-terminate:
-	kubectl exec yingwu -n hyperfaas -c yingwu -- kill -2 1
+stop:
+	kubectl exec yingwu -c yingwu -n hyperfaas -- kill -2 1
 
 clean:
 	kubectl delete pod yingwu -n hyperfaas
@@ -37,3 +38,6 @@ describe:
 
 pods:
 	kubectl get pods -n hyperfaas
+
+output:
+	kubectl exec yingwu -c yingwu -n hyperfaas -- cat /data.txt > data/data.txt

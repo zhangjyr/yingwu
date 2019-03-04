@@ -20,7 +20,7 @@ func NewScheduler() *Scheduler {
 	}
 }
 
-func (s *Scheduler) Send(fe *FE, function string, n int, concurrency int, stats chan *loader.RequesterStats) *loader.LoadCfg {
+func (s *Scheduler) Send(fe *FE, function string, n int, concurrency int, stats chan *loader.RequesterStats, hold bool) *loader.LoadCfg {
 	duration := n
 	goroutines := concurrency
 	allowRedirectsFlag := false
@@ -47,6 +47,9 @@ func (s *Scheduler) Send(fe *FE, function string, n int, concurrency int, stats 
 
 	loadGen := loader.NewLoadCfg(duration, goroutines, fe.Addr(), reqBody, method, host, header, stats, timeoutms,
 		allowRedirectsFlag, disableCompression, disableKeepAlive, clientCert, clientKey, caCert, http2)
+	if hold {
+		loadGen.Hold()
+	}
 
 	for i := 0; i < goroutines; i++ {
 		go loadGen.RunSingleLoadSession()

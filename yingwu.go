@@ -25,6 +25,7 @@ var duration int    //seconds
 var goroutines int
 var healthy int
 var function *string
+var datafile *string
 // var kubeconfig *string
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	flag.IntVar(&goroutines, "c", 10, "Number of goroutines to use (concurrent connections)")
 	flag.IntVar(&healthy, "h", 1, "Number of goroutines to be considered healthy")
 	function = flag.String("function", "hello", "Function to invoke")
+	datafile = flag.String("data", "", "Path to output data")
 	// if home := homeDir(); home != "" {
 	// 	kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	// } else {
@@ -45,6 +47,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
 	flag.Parse()
+	log.Println("Yingwu(鹦鹉) is mimicking...")
 
 	// use the current context in kubeconfig
 	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -69,66 +72,113 @@ func main() {
 		panic(err.Error())
 	}
 
-	log.Printf("Launching main function environment...")
+	// Estimated max pods
+	poolNum := int(math.Ceil(float64(goroutines) / float64(healthy)))
+
+	// Start initial pod
+	log.Printf("Launching hero fe...")
 	fe0, err := gs.ManagerInstance().Create(*function, true)
 	if err != nil {
 		panic(err.Error())
 		return
 	}
 
-	warmNum := int(math.Ceil(float64(goroutines) / float64(healthy))) - 1
-	log.Printf("Launching other function environments, %d in total...", warmNum)
-	fe1s, err := gs.ManagerInstance().CreateN("bye", warmNum, true)
+	// Start pods for sharing
+	log.Printf("Launching wingman fes, %d in total...", poolNum - 1)
+	fe1s, err := gs.ManagerInstance().CreateN("bye", poolNum - 1, true)
 	if err != nil {
 		gs.ManagerInstance().Clean()
 		panic(err.Error())
 		return
 	}
 
+	// Prepare stats collector
 	statsAggregator := make(chan *loader.RequesterStats, goroutines * 2)	// total goroutines < goroutines * 2
-	loaders := make([]*loader.LoadCfg, 1 + warmNum)
+	loaders := make([]*loader.LoadCfg, poolNum)
 	scheduler := gs.NewScheduler()
 	start := time.Now()
 	var totalRoutings int32
+	var queueing int32
+	var sharing int32
 
-	// Burst start
-	loaders[0] = scheduler.Send(fe0, *function, duration, healthy, statsAggregator)
-	totalRoutings += 2
+	// Burst start here
+	log.Printf("Incoming burst, concurrency: %d.", goroutines)
+	loaders[0] = scheduler.Send(fe0, *function, duration, healthy, statsAggregator, false)
+	atomic.AddInt32(&totalRoutings, int32(healthy))
 
-	// Start new pods
-	for i := 0; i < warmNum; i++ {
-		go func(i int) {
-			fe2, err := gs.ManagerInstance().Create(*function, true)
-			if err != nil {
-				log.Printf(err.Error())
-				return
-			}
-
-			if loaders[i + 1] != nil {
-				loaders[i + 1].Stop()
-			}
-			loaders[i + 1] = scheduler.Send(fe2, *function, durationLeft(duration, start), healthy, statsAggregator)
-			atomic.AddInt32(&totalRoutings, int32(healthy))
-		}(i)
+	if poolNum > 1 {
+		// Phase 1: Scale up. Hero holds.
+		log.Printf("Scaling up, hero holds %d more connections.", healthy)
+		loaders[1] = scheduler.Send(fe0, *function, duration, healthy, statsAggregator, false)
+		atomic.AddInt32(&totalRoutings, int32(healthy))
 	}
 
-	// Start sharing
-	for i := 0; i < warmNum; i++ {
-		go func(i int) {
-			err := scheduler.Share(fe1s[i], *function)
-			if err != nil {
-				log.Printf(err.Error())
-				return
-			}
+	if poolNum > 2 {
+		// Burst stage in gs
+		atomic.StoreInt32(&queueing, int32(goroutines - 2 * healthy))
+		log.Printf("Quening %d connections.", queueing)
+		for i := 2; i < poolNum; i++ {
+			go func(i int) {
+				loaders[i] = scheduler.Send(fe1s[i - 1], *function, durationLeft(duration, start), healthy, statsAggregator, true)
+				atomic.AddInt32(&totalRoutings, int32(healthy))
+			}(i)
+		}
 
-			if loaders[i + 1] != nil {
-				// New pod started
-				return
-			}
+		// Start new pods
+		log.Printf("Launching reinforcement fes, %d in total...", poolNum - 1)
+		for i := 1; i < poolNum; i++ {
+			go func(i int) {
+				fe2, err := gs.ManagerInstance().Create(*function, true)
+				if err != nil {
+					log.Printf(err.Error())
+					return
+				}
 
-			loaders[i + 1] = scheduler.Send(fe1s[i], *function, durationLeft(duration, start), healthy, statsAggregator)
-			atomic.AddInt32(&totalRoutings, int32(healthy))
-		}(i)
+				var remain int32
+				load := loaders[i]
+				load.Stop()
+				if load.IsHold() {
+					load.Resume()
+					remain = atomic.AddInt32(&queueing, int32(-healthy))
+				}
+				loaders[i] = scheduler.Send(fe2, *function, durationLeft(duration, start), healthy, statsAggregator, false)
+				atomic.AddInt32(&totalRoutings, int32(healthy))
+				shared := atomic.AddInt32(&sharing, -1)
+				if remain > 0 {
+					log.Printf("Reinforcement arrives, dealing %d connection, %d remaining in queue.", healthy, remain)
+				} else if shared >= 0 {
+					log.Printf("Reinforcement arrives, dealing %d connection, %d fes left sharing", healthy, shared)
+				} else {
+					log.Printf("Reinforcement arrives, dealing %d connection", healthy)
+				}
+			}(i)
+		}
+
+		// Start sharing
+		log.Printf("Summoning wingman fes, %d in total...", poolNum - 1)
+		for i := 1; i < poolNum; i++ {
+			go func(i int) {
+				err := scheduler.Share(fe1s[i - 1], *function)
+				if err != nil {
+					log.Printf(err.Error())
+					return
+				}
+
+				var remain int32
+				shared := atomic.AddInt32(&sharing, 1)
+				load := loaders[i]
+				if load.IsHold() {
+					load.Resume()
+					remain = atomic.AddInt32(&queueing, int32(-healthy))
+				} else {
+					load.Stop()
+					loaders[i] = scheduler.Send(fe1s[i - 1], *function, durationLeft(duration, start), healthy, statsAggregator, false)
+					atomic.AddInt32(&totalRoutings, int32(healthy))
+					remain = atomic.LoadInt32(&queueing)
+				}
+				log.Printf("Wingman arrives, dealing %d connection, %d remaining in queue, %d fes are sharing.", healthy, remain, shared)
+			}(i)
+		}
 	}
 
 	// Wait for end
@@ -142,7 +192,7 @@ func main() {
 	// go gs.share(pod2, "hello")
 	// go gs.add(<-pod1s, "hello")
 
-	log.Println("Removing yingwu...")
+	log.Println("Expelling yingwu(鹦鹉)...")
 	clientset.CoreV1().Pods("hyperfaas").Delete("yingwu", nil)
 }
 
@@ -154,6 +204,16 @@ func wait(sigChan chan os.Signal, statsAggregator chan *loader.RequesterStats, l
 	var responders int32
 	aggStats := loader.RequesterStats{MinRequestTime: time.Minute}
 	// for responders < totalRoutings {
+	var file *os.File
+	var err error
+	if len(*datafile) > 0 {
+		file, err = os.OpenFile(*datafile, os.O_CREATE|os.O_WRONLY, 0660)
+		if err != nil {
+			log.Printf("Warning: failed to open data file. Error: %s.", err.Error())
+		} else {
+			defer file.Close()
+		}
+	}
 	for {
 		select {
 		case <-sigChan:
@@ -173,6 +233,12 @@ func wait(sigChan chan os.Signal, statsAggregator chan *loader.RequesterStats, l
 			aggStats.MaxRequestTime = util.MaxDuration(aggStats.MaxRequestTime, stats.MaxRequestTime)
 			aggStats.MinRequestTime = util.MinDuration(aggStats.MinRequestTime, stats.MinRequestTime)
 			responders++
+			if file != nil {
+				for _, item := range stats.Items {
+					file.WriteString(item.String())
+					file.WriteString("\n")
+				}
+			}
 
 			if responders == atomic.LoadInt32(totalRoutings) {
 				if aggStats.NumRequests == 0 {

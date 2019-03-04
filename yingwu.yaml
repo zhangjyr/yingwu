@@ -13,4 +13,4 @@ spec:
     #     cpu: "300m"
     #   limits:
     #     cpu: "300m"
-    command: [ "/yingwu", "-d", "30", "-c", "10", "-h", "2" ]
+    command: [ "/yingwu", "-d", "60", "-c", "50", "-h", "10", "-data", "data.txt" ]

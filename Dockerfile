@@ -7,7 +7,7 @@ COPY gs                     gs
 COPY vendor                 vendor
 COPY yingwu.go              .
 
-RUN go test -v ./...
+# RUN go test -v ./...
 # Stripping via -ldflags "-s -w"
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags "-s -w" \
         -installsuffix cgo -o yingwu .

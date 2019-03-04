@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/watch"
@@ -21,6 +23,8 @@ var (
 type FE struct {
 	Pod      *apiv1.Pod
 	Ready    chan struct{}
+	Start    time.Time
+	Duration time.Duration
 }
 
 func (fe *FE) SetReady() {
@@ -29,6 +33,7 @@ func (fe *FE) SetReady() {
 		// Already closed
 	default:
 		close(fe.Ready)
+		fe.Duration = time.Since(fe.Start)
 	}
 }
 
@@ -118,16 +123,17 @@ func (mgr *manager) Create(function string, wait bool) (*FE, error) {
 			pod.Spec.Containers[0].Env[i] = envVar // Must set back to take effect.
 		}
 	}
+	start := time.Now()
 	pod, err = mgr.client.CoreV1().Pods(pod.ObjectMeta.Namespace).Create(pod)
 	if err != nil {
 		return nil, err
 	}
 
-	fe := mgr.add(function, pod)
+	fe := mgr.add(function, pod, start)
 
 	if wait {
 		<- fe.Ready
-		log.Printf("%s started", fe.Pod.Status.PodIP)
+		log.Printf("%s:%s started (%fms)", function, fe.Pod.Status.PodIP, math.Round(fe.Duration.Seconds() * 1e3))
 	}
 
 	return fe, nil
@@ -153,6 +159,7 @@ func (mgr *manager) CreateN(function string, n int, wait bool) ([]*FE, error) {
 			}
 
 			<-fes[i].Ready
+			log.Printf("%s:%s started (%fms)", function, fes[i].Pod.Status.PodIP, math.Round(fes[i].Duration.Seconds() * 1e3))
 			if atomic.AddInt32(&readies, 1) == int32(n) {
 				close(done)
 			}
@@ -180,7 +187,6 @@ func (mgr *manager) Clean() {
 	defer mgr.mu.Unlock()
 
 	log.Printf("Start cleaning.")
-	log.Printf("%v", mgr.fes)
 	for _, fe := range mgr.fes {
 		log.Printf("Cleaning up pod %s...", fe.Pod.ObjectMeta.Name)
 		mgr.client.CoreV1().Pods(fe.Pod.ObjectMeta.Namespace).Delete(fe.Pod.ObjectMeta.Name, nil)
@@ -189,7 +195,7 @@ func (mgr *manager) Clean() {
 	log.Printf("Done.")
 }
 
-func (mgr *manager) add(function string, pod *apiv1.Pod) *FE {
+func (mgr *manager) add(function string, pod *apiv1.Pod, start time.Time) *FE {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -202,6 +208,7 @@ func (mgr *manager) add(function string, pod *apiv1.Pod) *FE {
 	fe := &FE{
 		Pod: pod,
 		Ready: make(chan struct{}),
+		Start: start,
 	}
 	bucket[pod.ObjectMeta.Name] = fe
 	mgr.fes[pod.ObjectMeta.Name] = fe
