@@ -7,7 +7,7 @@ import (
 	"strings"
 //	"time"
 
-	"github.com/tsliwowicz/go-wrk/loader"
+	"github.com/zhangjyr/go-wrk/loader"
 )
 
 type Scheduler struct {
@@ -52,7 +52,7 @@ func (s *Scheduler) Send(fe *FE, function string, n int, concurrency int, stats 
 	}
 
 	for i := 0; i < goroutines; i++ {
-		go loadGen.RunSingleLoadSession()
+		go loadGen.RunSingleLoadSession(fmt.Sprintf("%s_%d", fe.Name, i))
 	}
 
 	return loadGen

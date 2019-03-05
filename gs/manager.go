@@ -21,6 +21,7 @@ var (
 )
 
 type FE struct {
+	Name     string
 	Pod      *apiv1.Pod
 	Ready    chan struct{}
 	Start    time.Time
@@ -206,6 +207,7 @@ func (mgr *manager) add(function string, pod *apiv1.Pod, start time.Time) *FE {
 	}
 
 	fe := &FE{
+		Name: fmt.Sprintf("%s_%d", function, len(bucket)),
 		Pod: pod,
 		Ready: make(chan struct{}),
 		Start: start,

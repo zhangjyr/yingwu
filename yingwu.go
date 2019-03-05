@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 //	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/rest"
-	"github.com/tsliwowicz/go-wrk/loader"
-	"github.com/tsliwowicz/go-wrk/util"
+	"github.com/zhangjyr/go-wrk/loader"
+	"github.com/zhangjyr/go-wrk/util"
 
 	"github.com/zhangjyr/yingwu/gs"
 )
@@ -145,11 +145,11 @@ func main() {
 				atomic.AddInt32(&totalRoutings, int32(healthy))
 				shared := atomic.AddInt32(&sharing, -1)
 				if remain > 0 {
-					log.Printf("Reinforcement arrives, dealing %d connection, %d remaining in queue.", healthy, remain)
+					log.Printf("Reinforcement arrives(%s), dealing %d connection, %d remaining in queue.", elapsed(start), healthy, remain)
 				} else if shared >= 0 {
-					log.Printf("Reinforcement arrives, dealing %d connection, %d fes left sharing", healthy, shared)
+					log.Printf("Reinforcement arrives(%s), dealing %d connection, %d fes left sharing", elapsed(start), healthy, shared)
 				} else {
-					log.Printf("Reinforcement arrives, dealing %d connection", healthy)
+					log.Printf("Reinforcement arrives(%s), dealing %d connection", elapsed(start), healthy)
 				}
 			}(i)
 		}
@@ -176,7 +176,8 @@ func main() {
 					atomic.AddInt32(&totalRoutings, int32(healthy))
 					remain = atomic.LoadInt32(&queueing)
 				}
-				log.Printf("Wingman arrives, dealing %d connection, %d remaining in queue, %d fes are sharing.", healthy, remain, shared)
+				log.Printf("Wingman arrives(%s), dealing %d connection, %d remaining in queue, %d fes are sharing.",
+					elapsed(start), healthy, remain, shared)
 			}(i)
 		}
 	}
@@ -194,6 +195,10 @@ func main() {
 
 	log.Println("Expelling yingwu(鹦鹉)...")
 	clientset.CoreV1().Pods("hyperfaas").Delete("yingwu", nil)
+}
+
+func elapsed(start time.Time) string {
+	return fmt.Sprintf("%.3fs", time.Since(start).Seconds())
 }
 
 func durationLeft(duration int, started time.Time) int {
