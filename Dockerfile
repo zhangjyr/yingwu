@@ -4,6 +4,7 @@ WORKDIR /go/src/github.com/zhangjyr/yingwu
 
 COPY k8s                    k8s
 COPY gs                     gs
+COPY policies               policies
 COPY vendor                 vendor
 COPY yingwu.go              .
 

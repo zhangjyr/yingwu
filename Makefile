@@ -5,7 +5,7 @@ TAG = b1
 
 all: container push
 
-linux:
+build:
 	CGO_ENABLED=0 GOOS=darwin go build -a -ldflags "-s -w" -installsuffix cgo -o yingwu
 
 container:

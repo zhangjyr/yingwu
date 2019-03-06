@@ -9,9 +9,9 @@ spec:
     image: zhangjyr/go2env:b1
     resources:
       requests:
-        cpu: "500m"
-      limits:
         cpu: "1"
+      limits:
+        cpu: "2"
     env:
     - name: profile
       value: "/profile.log"

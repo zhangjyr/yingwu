@@ -40,7 +40,7 @@ func (fe *FE) SetReady() {
 
 func (fe *FE) Addr() string {
 	<- fe.Ready
-	return fmt.Sprintf("http://%s:8080/", fe.Pod.Status.PodIP)
+	return fmt.Sprintf("http://%s:8080/?n=3000000", fe.Pod.Status.PodIP)
 }
 
 func (fe *FE) AdminAddr() string {

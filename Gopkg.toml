@@ -35,7 +35,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/tsliwowicz/go-wrk"
+  name = "github.com/zhangjyr/go-wrk"
 
 [[constraint]]
   name = "k8s.io/client-go"

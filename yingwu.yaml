@@ -13,4 +13,7 @@ spec:
     #     cpu: "300m"
     #   limits:
     #     cpu: "300m"
-    command: [ "/yingwu", "-d", "60", "-c", "50", "-h", "10", "-data", "data.txt" ]
+    # trivial
+    # command: [ "/yingwu", "-d", "60", "-c", "30", "-h", "3", "-o", "hello.txt", "-p", "multiphase" ]
+    # cpu
+    command: [ "/yingwu", "-d", "60", "-c", "20", "-h", "2", "-o", "cpu.txt", "-p", "scaleout", "-f", "benchmark_cpu" ]
