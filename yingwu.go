@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-//	"path/filepath"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
-//	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/rest"
 	"github.com/zhangjyr/go-wrk/loader"
 	"github.com/zhangjyr/go-wrk/util"
@@ -26,7 +25,9 @@ var healthy int
 var function string
 var datafile string
 var policy string
-// var kubeconfig *string
+var composition string
+var client bool
+var kubeconfig string
 
 func init() {
 	flag.IntVar(&duration, "d", 30, "Duration of test in seconds")
@@ -34,32 +35,35 @@ func init() {
 	flag.IntVar(&healthy, "h", 1, "Number of goroutines to be considered healthy")
 	flag.StringVar(&function, "f", "hello", "Function to invoke")
 	flag.StringVar(&datafile, "o", "", "Path to output data")
-	flag.StringVar(&policy, "p", "", "Policy of mimicking. Available: multiphase, scaleout.")
-	// if home := homeDir(); home != "" {
-	// 	kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	// } else {
-	// 	kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	// }
+	flag.StringVar(&policy, "p", "", "Policy of mimicking. Available: scaleout, multiphase, ochestrator.")
+	flag.StringVar(&composition, "i", "", "Path to composition file for \"ochestrator\" policy.")
+	flag.BoolVar(&client, "cli", false, "Set if call from client.")
+	if home := homeDir(); home != "" {
+		flag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
+	}
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU() + goroutines)
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	signal.Notify(sigChan, os.Kill)
 	flag.Parse()
 	log.Println("Yingwu(鹦鹉) is mimicking...")
 
-	// use the current context in kubeconfig
-	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
-
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
+	var config *rest.Config
+	var err error
+	if client {
+		// use the current context in kubeconfig
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
+	} else {
+		// creates the in-cluster config
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			panic(err.Error())
+		}
 	}
 
 	// Create the clientset and initialize manager
@@ -78,24 +82,27 @@ func main() {
 	// Apply policy
 	var loaders []*loader.LoadCfg
 	switch policy {
-	case "multiphase":
-		loaders, err = policies.Multiphase(duration, goroutines, healthy, function, stats)
 	case "scaleout":
 		loaders, err = policies.Scaleout(duration, goroutines, healthy, function, stats)
+	case "multiphase":
+		loaders, err = policies.Multiphase(duration, goroutines, healthy, function, stats)
+	case "ochestrator":
+		loaders, err = policies.Ochestrator(duration, composition, stats)
 	}
 	if err != nil {
+		gs.ManagerInstance().Clean()
 		panic(err.Error())
 	}
 
 	// Wait for end
-	wait(sigChan, loaders, stats)
+	wait(loaders, stats)
 
 	// Suicide
 	log.Println("Expelling yingwu(鹦鹉)...")
 	clientset.CoreV1().Pods("hyperfaas").Delete("yingwu", nil)
 }
 
-func wait(sigChan chan os.Signal, loaders []*loader.LoadCfg, policyStats *policies.Stats) {
+func wait(loaders []*loader.LoadCfg, policyStats *policies.Stats) {
 	var responders int32
 	aggStats := loader.RequesterStats{MinRequestTime: time.Minute}
 
@@ -111,7 +118,7 @@ func wait(sigChan chan os.Signal, loaders []*loader.LoadCfg, policyStats *polici
 	}
 	for {
 		select {
-		case <-sigChan:
+		case <-policyStats.SigChan:
 			fmt.Printf("stopping...\n")
 			for _, loadGen := range loaders {
 				if loadGen != nil {
@@ -156,9 +163,9 @@ func wait(sigChan chan os.Signal, loaders []*loader.LoadCfg, policyStats *polici
 	}
 }
 
-// func homeDir() string {
-// 	if h := os.Getenv("HOME"); h != "" {
-// 		return h
-// 	}
-// 	return os.Getenv("USERPROFILE") // windows
-// }
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
+}

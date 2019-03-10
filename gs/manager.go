@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
+	"github.com/zhangjyr/go-wrk/loader"
 )
 
 var (
@@ -26,6 +27,8 @@ type FE struct {
 	Ready    chan struct{}
 	Start    time.Time
 	Duration time.Duration
+	Loader   *loader.LoadCfg
+	buffer   bool
 }
 
 func (fe *FE) SetReady() {
@@ -46,6 +49,15 @@ func (fe *FE) Addr() string {
 func (fe *FE) AdminAddr() string {
 	<- fe.Ready
 	return fmt.Sprintf("http://%s:8079/", fe.Pod.Status.PodIP)
+}
+
+func (fe *FE) IsBuffer() bool {
+	return fe.buffer
+}
+
+func (fe FE) NewBuffer() *FE {
+	fe.buffer = true
+	return &fe
 }
 
 type manager struct {

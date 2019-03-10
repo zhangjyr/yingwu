@@ -166,6 +166,20 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:9c54f515aa0161336e75139f0458ca04a9274de15d03e20dd471f494f46dda24"
+  name = "github.com/howeyc/gopass"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3ca23474a7c7203e0a0a070fd33508f6efdb9b3d"
+
+[[projects]]
+  digest = "1:06ec9147400aabb0d6960dd8557638603b5f320cd4cb8a3eceaae407e782849a"
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "6633656539c1639d9d78127b7d47c622b5d7b6dc"
+
+[[projects]]
   digest = "1:75ab90ae3f5d876167e60f493beadfe66f0ed861a710f283fb06c86437a09538"
   name = "github.com/jonboulle/clockwork"
   packages = ["."]
@@ -215,14 +229,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:93d0d6acd66a0b035b78248ce62cf8f86f7c337da9811641d48374f9aa0ece8e"
+  digest = "1:6f2973b7137b86b1a3c7143f5d1582cd0f1d796a4c0d8bcaf09cbd708f266285"
   name = "github.com/zhangjyr/go-wrk"
   packages = [
     "loader",
     "util",
   ]
   pruneopts = "UT"
-  revision = "866acbfcf9577e977edf9cd24b79e9df8b0a5810"
+  revision = "7cb7cfdb6c99bdbefc5581296a7065775960db19"
+
+[[projects]]
+  branch = "master"
+  digest = "1:058e9504b9a79bfe86092974d05bb3298d2aa0c312d266d43148de289a5065d9"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  pruneopts = "UT"
+  revision = "c2843e01d9a2bc60bb26ad24e09734fdc2d9ec58"
 
 [[projects]]
   branch = "master"
@@ -250,6 +272,17 @@
   ]
   pruneopts = "UT"
   revision = "3c3a985cb79f52a3190fbc056984415ca6763d01"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c15b180a35d04dcbb9a98fe7e453be2438f6f8e9a719c41294141a6390d641d4"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows",
+  ]
+  pruneopts = "UT"
+  revision = "980fc434d28e11f0a5c1ae102a263b8c56641011"
 
 [[projects]]
   digest = "1:0c56024909189aee3364b7f21a95a27459f718aa7c199a5c111c36cfffd9eaef"
@@ -311,7 +344,7 @@
   version = "v2.2.2"
 
 [[projects]]
-  digest = "1:c31aeb67d55acf2e358e98060afb6388fe28173909fdb95573dd89678833c808"
+  digest = "1:b0c9fdddd33a0f1c0a7676184158ed8d9b915455f030dd32b3193d9b506b59d2"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -394,6 +427,7 @@
     "pkg/util/errors",
     "pkg/util/flowcontrol",
     "pkg/util/framer",
+    "pkg/util/homedir",
     "pkg/util/integer",
     "pkg/util/intstr",
     "pkg/util/json",
@@ -416,7 +450,11 @@
     "plugin/pkg/client/auth/gcp",
     "plugin/pkg/client/auth/oidc",
     "rest",
+    "tools/auth",
+    "tools/clientcmd",
     "tools/clientcmd/api",
+    "tools/clientcmd/api/latest",
+    "tools/clientcmd/api/v1",
     "tools/metrics",
     "transport",
   ]
@@ -436,6 +474,7 @@
     "k8s.io/client-go/pkg/api/v1",
     "k8s.io/client-go/pkg/watch",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/clientcmd",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

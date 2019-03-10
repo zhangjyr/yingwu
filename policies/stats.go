@@ -3,6 +3,8 @@ package policies
 import (
 	"fmt"
 	"math"
+	"os"
+	"os/signal"
 	"sync/atomic"
 	"time"
 
@@ -10,14 +12,20 @@ import (
 )
 
 type Stats struct {
-	Aggregator chan *loader.RequesterStats
-	totalRoutings int32
+	Aggregator     chan *loader.RequesterStats
+	totalRoutings  int32
+	Start          time.Time
+	SigChan        chan os.Signal
 }
 
 func NewStats(concurrency int) *Stats {
-	return &Stats{
+	stats := &Stats{
 		Aggregator: make(chan *loader.RequesterStats, concurrency * 2),
+		SigChan: make(chan os.Signal, 1),
 	}
+	signal.Notify(stats.SigChan, os.Interrupt)
+	signal.Notify(stats.SigChan, os.Kill)
+	return stats
 }
 
 func (s *Stats) TotalRoutings() int32 {

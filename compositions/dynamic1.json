@@ -1,0 +1,76 @@
+{
+	"meta": {
+		"capacity": 30,
+		"size": 10,
+		"maxcpp": 2,
+		"policy": "multiphase"
+	},
+	"functions": [
+		{
+			"function": "hello",
+			"schedule": [
+				{ "tick": 0, "pods": ["0"], "conn": 1 },
+				{ "tick": 1, "pods": ["0", "2-10"], "conn": 20 },
+				{ "tick": 3, "pods": ["0"], "conn": 2 },
+				{ "tick": 10, "pods": ["0", "4-7"], "conn": 10 },
+				{ "tick": 10, "pods": ["0"], "conn": 2 }
+			]
+		},
+		{
+			"function": "bye",
+			"schedule": [
+				{ "tick": 0, "pods": ["1"], "conn": 1 },
+				{ "tick": 5, "pods": ["1-10"], "conn": 20 },
+				{ "tick": 7, "pods": ["1-3"], "conn": 6 }
+			]
+		},
+		{
+			"function": "hello1",
+			"schedule": [
+				{ "tick": 0, "pods": ["22"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello2",
+			"schedule": [
+				{ "tick": 0, "pods": ["23"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello3",
+			"schedule": [
+				{ "tick": 0, "pods": ["24"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello4",
+			"schedule": [
+				{ "tick": 0, "pods": ["25"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello5",
+			"schedule": [
+				{ "tick": 0, "pods": ["26"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello6",
+			"schedule": [
+				{ "tick": 0, "pods": ["27"], "conn": 0  }
+			]
+		},
+		{
+			"function": "hello7",
+			"schedule": [
+				{ "tick": 0, "pods": ["28"], "conn": 0 }
+			]
+		},
+		{
+			"function": "hello8",
+			"schedule": [
+				{ "tick": 0, "pods": ["29"], "conn": 0 }
+			]
+		}
+	]
+}

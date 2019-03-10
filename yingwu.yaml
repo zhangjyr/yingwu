@@ -8,12 +8,12 @@ spec:
   - name: yingwu
     image: zhangjyr/yingwu:b1
     imagePullPolicy: Always
-    # resources:
-    #   requests:
-    #     cpu: "300m"
-    #   limits:
-    #     cpu: "300m"
+    resources:
+      requests:
+        cpu: "4"
+      limits:
+        cpu: "4"
     # trivial
-    command: [ "/yingwu", "-d", "60", "-c", "200", "-h", "20", "-o", "data.txt", "-p", "multiphase" ]
+    command: [ "/yingwu", "-d", "60", "-c", "1000", "-h", "10", "-o", "data.txt", "-p", "scaleout" ]
     # cpu
-    # command: [ "/yingwu", "-d", "60", "-c", "20", "-h", "2", "-o", "data.txt", "-p", "multiphase", "-f", "benchmark_cpu" ]
+    # command: [ "/yingwu", "-d", "60", "-c", "1000", "-h", "10", "-o", "data.txt", "-p", "multiphase", "-f", "benchmark_cpu" ]
